@@ -1,33 +1,42 @@
 name: Generate Bible Video
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: 3.11
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-          pip install diffusers==0.36.0 transformers accelerate
-          pip install moviepy==2.2.1 pillow gTTS
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libsm6 libxext6
 
-
-      - name: Run video generator
+      - name: Install Python dependencies
         run: |
-          python generate_bible_video.py
+          pip install --upgrade pip
+          pip install moviepy==2.2.1 pillow gTTS torch torchvision torchaudio diffusers transformers accelerate requests
+
+      - name: Run Bible Video Generator
+        run: python generate_bible_video.py
 
       - name: Upload video artifact
         uses: actions/upload-artifact@v4
         with:
           name: bible-video
-          path: output_video.mp4
+          path: output/youtube/test.mp4
