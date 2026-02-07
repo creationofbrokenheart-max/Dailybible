@@ -2,57 +2,54 @@ import os
 from gtts import gTTS
 from moviepy.editor import ImageClip, TextClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip
 
-# ---------- CONFIG ----------
+# --- Configuration ---
 VERSE = "The Lord is my shepherd; I shall not want. — Psalm 23:1"
-BG_IMAGE = "bg_youtube.jpg"  # Make sure you have a good image here
-OUTPUT_VIDEO = "output/youtube/test.mp4"
-FONT = "Arial-Bold"  # Ensure GitHub runner has a basic font
-TEXT_COLOR = "white"
-VIDEO_SIZE = (1920, 1080)
-DURATION = 15  # seconds
 VOICE_FILE = "voice.mp3"
-MUSIC_FILE = "music.mp3"
-MUSIC_VOLUME = 0.2
-# -----------------------------
+MUSIC_FILE = "music.mp3"  # Put your background music here
+OUTPUT_FILE = "output_video.mp4"
+VIDEO_SIZE = (1920, 1080)
+DURATION = 15  # seconds for the video
+TEXT_COLOR = "white"
+FONT_SIZE = 70
+FONT = "Arial-Bold"  # Make sure this font is available on runner or OS
 
-os.makedirs(os.path.dirname(OUTPUT_VIDEO), exist_ok=True)
-
-# 1️⃣ Create voiceover using gTTS
-tts = gTTS(VERSE)
+# --- Generate voiceover ---
+tts = gTTS(text=VERSE, lang='en')
 tts.save(VOICE_FILE)
 
-# 2️⃣ Load audio clips
+# --- Optional: Use your own cinematic image ---
+# For real AI-generated backgrounds, you can integrate Stable Diffusion here
+BACKGROUND_IMAGE = "bg_youtube.jpg"  # Replace with your cinematic image
+
+# --- Load clips ---
 voice = AudioFileClip(VOICE_FILE)
 
+# Music (optional)
 if os.path.exists(MUSIC_FILE):
-    music = AudioFileClip(MUSIC_FILE).volumex(MUSIC_VOLUME)
-else:
-    music = None
-
-# 3️⃣ Combine audio
-if music:
-    audio = CompositeAudioClip([voice.set_duration(DURATION), music.set_duration(DURATION)])
+    music = AudioFileClip(MUSIC_FILE).volumex(0.3).set_duration(DURATION)
+    audio = CompositeAudioClip([voice.set_duration(DURATION), music])
 else:
     audio = voice.set_duration(DURATION)
 
-# 4️⃣ Create text clip
-text_clip = TextClip(
+# Background image clip
+background = ImageClip(BACKGROUND_IMAGE).set_duration(DURATION).resize(VIDEO_SIZE)
+
+# Text overlay
+text = TextClip(
     VERSE,
-    fontsize=70,
-    font=FONT,
+    fontsize=FONT_SIZE,
     color=TEXT_COLOR,
-    method="label",
-    size=(VIDEO_SIZE[0] - 200, None),
-    align="center"
+    font=FONT,
+    method="caption",
+    size=(VIDEO_SIZE[0]*0.8, None),  # wrap text to 80% width
 ).set_position("center").set_duration(DURATION)
 
-# 5️⃣ Create background clip
-background_clip = ImageClip(BG_IMAGE).resize(VIDEO_SIZE).set_duration(DURATION)
+# Composite video
+final_clip = CompositeVideoClip([background, text])
+final_clip = final_clip.set_audio(audio)
 
-# 6️⃣ Composite video
-video = CompositeVideoClip([background_clip, text_clip])
-video = video.set_audio(audio)
+# Ensure output directory exists
+os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
 
-# 7️⃣ Export
-video.write_videofile(OUTPUT_VIDEO, fps=24)
-print("Video generated successfully!")
+# Write final video
+final_clip.write_videofile(OUTPUT_FILE, fps=24)
