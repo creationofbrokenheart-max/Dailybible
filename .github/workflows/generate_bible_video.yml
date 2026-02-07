@@ -20,7 +20,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install moviepy gTTS pillow
+          # Install all moviepy dependencies
+          pip install moviepy==2.2.1 Pillow imageio imageio-ffmpeg gTTS
+
+      - name: Verify moviepy installation
+        run: |
+          python -c "from moviepy.editor import ImageClip, TextClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip; print('moviepy is working')"
 
       - name: Run Bible Video Script
         run: python generate_bible_video.py
