@@ -18,7 +18,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-          pip install diffusers transformers accelerate moviepy pillow gTTS
+          pip install diffusers==0.36.0 transformers accelerate
+          pip install moviepy==2.2.1 pillow gTTS
+
 
       - name: Run video generator
         run: |
