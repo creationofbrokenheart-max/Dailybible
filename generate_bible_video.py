@@ -1,11 +1,14 @@
 import os
 from gtts import gTTS
-from moviepy.editor import ImageClip, TextClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip
+# Video clips
 from moviepy.video.VideoClip import TextClip, ImageClip, CompositeVideoClip
+
+# Audio clips
 from moviepy.audio.io.AudioFileClip import AudioFileClip
 from moviepy.audio.CompositeAudioClip import CompositeAudioClip
 
 print("moviepy is working")
+
 
 
 # --- Configuration ---
