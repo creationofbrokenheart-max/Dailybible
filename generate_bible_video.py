@@ -1,87 +1,62 @@
 import os
-from PIL import Image
-from moviepy.editor import (
-    ImageClip,
-    TextClip,
-    CompositeVideoClip,
-    AudioFileClip,
-    CompositeAudioClip
-)
 from gtts import gTTS
-from io import BytesIO
+from moviepy.editor import ImageClip, TextClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip
+from moviepy.audio.fx.all import volumex
 import requests
-from diffusers import StableDiffusionPipeline
+from io import BytesIO
+from PIL import Image
 import torch
+from diffusers import StableDiffusionPipeline
 
-# ----------------------------
-# CONFIGURATION
-# ----------------------------
+# Constants
 VERSE = "The Lord is my shepherd; I shall not want. — Psalm 23:1"
-OUTPUT_VIDEO = "output_video.mp4"
 VIDEO_SIZE = (1920, 1080)
-DURATION = 12  # seconds
-MUSIC_FILE = "music.mp3"
-VOICE_FILE = "voice.mp3"
-FONT_SIZE = 80
+DURATION = 15  # seconds
+FONT_SIZE = 70
 TEXT_COLOR = "white"
 FONT = "Arial-Bold"
+MUSIC_FILE = "music.mp3"  # Place your music file here
+OUTPUT_FILE = "output/youtube/test.mp4"
+BG_IMAGE_FILE = "bg_youtube.jpg"
 
-# ----------------------------
-# 1. Generate background image with Stable Diffusion
-# ----------------------------
-def generate_background(verse):
-    model_id = "runwayml/stable-diffusion-v1-5"  # You can pick another SD model
-    pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
-    pipe = pipe.to("cuda")  # use GPU
-    prompt = f"high quality, cinematic, realistic, inspirational, {verse}"
-    image = pipe(prompt, height=1080, width=1920).images[0]
-    image.save("background.jpg")
-    return "background.jpg"
+os.makedirs("output/youtube", exist_ok=True)
 
-# ----------------------------
-# 2. Generate voiceover using gTTS
-# ----------------------------
-def generate_voice(verse):
-    tts = gTTS(text=verse, lang="en")
-    tts.save(VOICE_FILE)
-    return VOICE_FILE
+# 1️⃣ Generate a relevant AI background image
+def generate_image(prompt, path):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    pipe = StableDiffusionPipeline.from_pretrained(
+        "runwayml/stable-diffusion-v1-5", torch_dtype=torch.float16 if device=="cuda" else torch.float32
+    )
+    pipe = pipe.to(device)
+    image = pipe(prompt, height=VIDEO_SIZE[1], width=VIDEO_SIZE[0]).images[0]
+    image.save(path)
 
-# ----------------------------
-# 3. Create video with MoviePy
-# ----------------------------
-def create_video(bg_path, voice_path, music_path):
-    # Background clip
-    bg_clip = ImageClip(bg_path).resize(VIDEO_SIZE).set_duration(DURATION)
+if not os.path.exists(BG_IMAGE_FILE):
+    print("Generating AI background image...")
+    generate_image(f"{VERSE}, cinematic, epic, high quality, ultra-detailed", BG_IMAGE_FILE)
 
-    # Text clip
-    txt_clip = TextClip(
-        VERSE,
-        fontsize=FONT_SIZE,
-        font=FONT,
-        color=TEXT_COLOR,
-        method="label",
-        size=(VIDEO_SIZE[0] - 200, None)  # wrap text nicely
-    ).set_position("center").set_duration(DURATION)
+# 2️⃣ Generate voice-over
+voice_file = "voice.mp3"
+if not os.path.exists(voice_file):
+    print("Generating voice-over...")
+    tts = gTTS(text=VERSE, lang="en")
+    tts.save(voice_file)
 
-    # Audio
-    voice_clip = AudioFileClip(voice_path).set_duration(DURATION)
-    if os.path.exists(music_path):
-        music_clip = AudioFileClip(music_path).volumex(0.2).set_duration(DURATION)
-        audio = CompositeAudioClip([voice_clip, music_clip])
-    else:
-        audio = voice_clip
+# 3️⃣ Load background music and voice
+voice = AudioFileClip(voice_file).set_duration(DURATION)
+music = AudioFileClip(MUSIC_FILE).set_duration(DURATION).fx(volumex, 0.2)
+audio = CompositeAudioClip([voice, music])
 
-    # Compose video
-    video = CompositeVideoClip([bg_clip, txt_clip])
-    video = video.set_audio(audio)
-    video.write_videofile(OUTPUT_VIDEO, fps=24, codec="libx264", audio_codec="aac")
+# 4️⃣ Create video clips
+background = ImageClip(BG_IMAGE_FILE).with_duration(DURATION)
+text = TextClip(
+    VERSE,
+    fontsize=FONT_SIZE,
+    color=TEXT_COLOR,
+    font=FONT,
+    method="label"
+).with_duration(DURATION).set_position("center")
 
-# ----------------------------
-# MAIN
-# ----------------------------
-if __name__ == "__main__":
-    os.makedirs("output", exist_ok=True)
-    bg = generate_background(VERSE)
-    voice = generate_voice(VERSE)
-    create_video(bg, voice, MUSIC_FILE)
-    print("✅ Video generation complete!")
+video = CompositeVideoClip([background, text])
+video = video.set_audio(audio)
+video.write_videofile(OUTPUT_FILE, fps=24, codec="libx264")
