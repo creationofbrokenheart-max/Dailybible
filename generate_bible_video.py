@@ -1,6 +1,12 @@
 import os
 from gtts import gTTS
 from moviepy.editor import ImageClip, TextClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip
+from moviepy.video.VideoClip import TextClip, ImageClip, CompositeVideoClip
+from moviepy.audio.io.AudioFileClip import AudioFileClip
+from moviepy.audio.CompositeAudioClip import CompositeAudioClip
+
+print("moviepy is working")
+
 
 # --- Configuration ---
 VERSE = "The Lord is my shepherd; I shall not want. — Psalm 23:1"
