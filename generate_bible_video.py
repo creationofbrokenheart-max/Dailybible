@@ -1,62 +1,58 @@
 import os
 from gtts import gTTS
 from moviepy.editor import ImageClip, TextClip, CompositeVideoClip, AudioFileClip, CompositeAudioClip
-from moviepy.audio.fx.all import volumex
-import requests
-from io import BytesIO
-from PIL import Image
-import torch
-from diffusers import StableDiffusionPipeline
 
-# Constants
+# ---------- CONFIG ----------
 VERSE = "The Lord is my shepherd; I shall not want. — Psalm 23:1"
+BG_IMAGE = "bg_youtube.jpg"  # Make sure you have a good image here
+OUTPUT_VIDEO = "output/youtube/test.mp4"
+FONT = "Arial-Bold"  # Ensure GitHub runner has a basic font
+TEXT_COLOR = "white"
 VIDEO_SIZE = (1920, 1080)
 DURATION = 15  # seconds
-FONT_SIZE = 70
-TEXT_COLOR = "white"
-FONT = "Arial-Bold"
-MUSIC_FILE = "music.mp3"  # Place your music file here
-OUTPUT_FILE = "output/youtube/test.mp4"
-BG_IMAGE_FILE = "bg_youtube.jpg"
+VOICE_FILE = "voice.mp3"
+MUSIC_FILE = "music.mp3"
+MUSIC_VOLUME = 0.2
+# -----------------------------
 
-os.makedirs("output/youtube", exist_ok=True)
+os.makedirs(os.path.dirname(OUTPUT_VIDEO), exist_ok=True)
 
-# 1️⃣ Generate a relevant AI background image
-def generate_image(prompt, path):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    pipe = StableDiffusionPipeline.from_pretrained(
-        "runwayml/stable-diffusion-v1-5", torch_dtype=torch.float16 if device=="cuda" else torch.float32
-    )
-    pipe = pipe.to(device)
-    image = pipe(prompt, height=VIDEO_SIZE[1], width=VIDEO_SIZE[0]).images[0]
-    image.save(path)
+# 1️⃣ Create voiceover using gTTS
+tts = gTTS(VERSE)
+tts.save(VOICE_FILE)
 
-if not os.path.exists(BG_IMAGE_FILE):
-    print("Generating AI background image...")
-    generate_image(f"{VERSE}, cinematic, epic, high quality, ultra-detailed", BG_IMAGE_FILE)
+# 2️⃣ Load audio clips
+voice = AudioFileClip(VOICE_FILE)
 
-# 2️⃣ Generate voice-over
-voice_file = "voice.mp3"
-if not os.path.exists(voice_file):
-    print("Generating voice-over...")
-    tts = gTTS(text=VERSE, lang="en")
-    tts.save(voice_file)
+if os.path.exists(MUSIC_FILE):
+    music = AudioFileClip(MUSIC_FILE).volumex(MUSIC_VOLUME)
+else:
+    music = None
 
-# 3️⃣ Load background music and voice
-voice = AudioFileClip(voice_file).set_duration(DURATION)
-music = AudioFileClip(MUSIC_FILE).set_duration(DURATION).fx(volumex, 0.2)
-audio = CompositeAudioClip([voice, music])
+# 3️⃣ Combine audio
+if music:
+    audio = CompositeAudioClip([voice.set_duration(DURATION), music.set_duration(DURATION)])
+else:
+    audio = voice.set_duration(DURATION)
 
-# 4️⃣ Create video clips
-background = ImageClip(BG_IMAGE_FILE).with_duration(DURATION)
-text = TextClip(
+# 4️⃣ Create text clip
+text_clip = TextClip(
     VERSE,
-    fontsize=FONT_SIZE,
-    color=TEXT_COLOR,
+    fontsize=70,
     font=FONT,
-    method="label"
-).with_duration(DURATION).set_position("center")
+    color=TEXT_COLOR,
+    method="label",
+    size=(VIDEO_SIZE[0] - 200, None),
+    align="center"
+).set_position("center").set_duration(DURATION)
 
-video = CompositeVideoClip([background, text])
+# 5️⃣ Create background clip
+background_clip = ImageClip(BG_IMAGE).resize(VIDEO_SIZE).set_duration(DURATION)
+
+# 6️⃣ Composite video
+video = CompositeVideoClip([background_clip, text_clip])
 video = video.set_audio(audio)
-video.write_videofile(OUTPUT_FILE, fps=24, codec="libx264")
+
+# 7️⃣ Export
+video.write_videofile(OUTPUT_VIDEO, fps=24)
+print("Video generated successfully!")
