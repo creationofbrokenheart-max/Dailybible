@@ -1,32 +1,31 @@
-name: Daily Bible Video
+name: Generate Bible Video
 
 on:
-  schedule:
-    - cron: '0 6 * * *'  # Every day at 6:00 UTC
-  workflow_dispatch:  # allows manual run
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: 3.11
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+          pip install diffusers transformers accelerate moviepy pillow gTTS
 
-      - name: Generate video
-        run: python generate_video.py
+      - name: Run video generator
+        run: |
+          python generate_bible_video.py
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4  # <-- updated
+      - name: Upload video artifact
+        uses: actions/upload-artifact@v4
         with:
           name: bible-video
-          path: output/test_video.mp4
+          path: output_video.mp4
